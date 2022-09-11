@@ -1,7 +1,6 @@
 provider "aws" {
     region = var.REGION
-    access_key = var.AWS_ACCESS_KEY
-    secret_key = var.AWS_SECRET_KEY
+    profile = "dev"
 }
 
 resource "aws_vpc" "Aurion-VPC" {
@@ -47,7 +46,6 @@ resource "aws_security_group" "allow-ssh" {
       to_port = 22
     }
 
-
     egress {
       cidr_blocks = [ "0.0.0.0/0" ]
       description = "Allow all - outbound"
@@ -75,17 +73,31 @@ resource "aws_key_pair" "app_ssh" {
 #     }
 # }
 
-# resource "aws_internet_gateway" "gw" {
-#     vpc_id = aws_vpc.Aurion-VPC.id
+resource "aws_internet_gateway" "gw" {
+    vpc_id = aws_vpc.Aurion-VPC.id
 
-#      tags = {
-#         Name = "Aurion-IGW"
-#     }
-# }
+     tags = {
+        Name = "Aurion-IGW"
+    }
+}
+
+resource "aws_route_table" "public-route" {
+    vpc_id = aws_vpc.Aurion-VPC.id
+
+    route {
+        cidr_block = "0.0.0.0/0"
+        gateway_id = aws_internet_gateway.gw.id
+    }
+}
+
+resource "aws_main_route_table_association" "main-route" {
+    vpc_id = aws_vpc.Aurion-VPC.id
+    route_table_id = aws_route_table.public-route.id
+}
 
 resource "aws_instance" "aegon-vm" {
     ami = lookup(var.AMIS, var.REGION)
-    instance_type = "t3.micro"
+    instance_type = "t2.micro"
     subnet_id = aws_subnet.public-1a.id
     vpc_security_group_ids = [aws_security_group.allow-ssh.id]
     associate_public_ip_address = true
